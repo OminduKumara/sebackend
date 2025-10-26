@@ -1,0 +1,12 @@
+{
+  "customerId": 1,
+  "customerName": "Test Customer",
+  "customerEmail": "test@example.com",
+  "items": [
+    {
+      "description": "Test Item",
+      "quantity": 1,
+      "unitPrice": 100.00
+    }
+  ]
+}
