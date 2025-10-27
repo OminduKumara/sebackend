@@ -21,22 +21,41 @@ public class MysqlUrlEnvironmentPostProcessor implements EnvironmentPostProcesso
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        // If spring.datasource.url is already set (via SPRING_DATASOURCE_URL or properties), don't override
+        // Check current spring.datasource.url and SPRING_DATASOURCE_URL first
         String existing = environment.getProperty(PROP_SPRING_DATASOURCE_URL);
-        if (existing != null && !existing.isBlank()) {
-            return;
-        }
-
-        // Try SPRING_DATASOURCE_URL env first (case-insensitive access via env property names is handled by Spring)
         String springEnv = environment.getProperty(ENV_SPRING_DATASOURCE_URL);
+
         if (springEnv != null && !springEnv.isBlank()) {
-            // Prefer explicit SPRING_DATASOURCE_URL
-            addProperty(environment, PROP_SPRING_DATASOURCE_URL, springEnv);
+            // Explicit SPRING_DATASOURCE_URL provided in env — ensure it starts with jdbc, otherwise normalize
+            String normalized = normalizeMysqlUrl(springEnv.trim());
+            if (normalized != null) {
+                addProperty(environment, PROP_SPRING_DATASOURCE_URL, normalized);
+            } else {
+                addProperty(environment, PROP_SPRING_DATASOURCE_URL, springEnv.trim());
+            }
             return;
         }
 
-        // Then try MYSQL_URL which Railway often provides in the form mysql://user:pass@host:port/db
+        if (existing != null && !existing.isBlank()) {
+            // spring.datasource.url already present (possibly from application.properties). If it starts with jdbc, nothing to do.
+            if (existing.startsWith("jdbc:")) {
+                return;
+            }
+            // If it looks like mysql://, normalize and override
+            String normalized = normalizeMysqlUrl(existing.trim());
+            if (normalized != null) {
+                addProperty(environment, PROP_SPRING_DATASOURCE_URL, normalized);
+                return;
+            }
+            // otherwise leave as-is (let Spring fail so user can see the exact misconfiguration)
+            return;
+        }
+
+        // Then try MYSQL_URL / MYSQL_PUBLIC_URL which Railway often provides in the form mysql://user:pass@host:port/db
         String mysqlUrl = environment.getProperty(ENV_MYSQL_URL);
+        if (mysqlUrl == null || mysqlUrl.isBlank()) {
+            mysqlUrl = environment.getProperty("MYSQL_PUBLIC_URL");
+        }
         if (mysqlUrl != null && !mysqlUrl.isBlank()) {
             String fixed = normalizeMysqlUrl(mysqlUrl.trim());
             if (fixed != null) {
