@@ -1,26 +1,30 @@
-## Multi-stage Dockerfile for building and running the mybungalow Spring Boot app
-## - Build stage uses Maven with Eclipse Temurin JDK 17 (matches pom.xml java.version)
-## - Run stage uses a lightweight Temurin JRE image
-
+# ==========================
+# Build stage
+# ==========================
 FROM maven:3.9.5-eclipse-temurin-17 AS builder
 WORKDIR /workspace
 
-# Copy only the files needed for a Maven build to leverage layer caching
+# Copy only required files for Maven caching
 COPY pom.xml mvnw ./
 COPY .mvn .mvn
 COPY src ./src
 
-# Package the application (skip tests to speed up builds on deploy)
+# Build without running tests
 RUN mvn -B -DskipTests package
 
+# ==========================
+# Run stage
+# ==========================
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-# Copy the built jar from the builder stage. Use wildcard to be resilient to SNAPSHOT version.
+# Copy the jar
 COPY --from=builder /workspace/target/*.jar ./app.jar
 
 EXPOSE 8080
 
-# Allow passing extra JVM options via JAVA_OPTS and respect PORT environment variable injected by Railway
-ENV JAVA_OPTS=""
+# Limit JVM memory for small container
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"
+
+# Respect Railway's PORT env variable
 ENTRYPOINT ["sh","-c","java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar"]
