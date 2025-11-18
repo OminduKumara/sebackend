@@ -6,9 +6,11 @@ import com.backend.mybungalow.dto.EmployeeUpdateRequest;
 import com.backend.mybungalow.exception.ResourceNotFoundException;
 import com.backend.mybungalow.model.Employee;
 import com.backend.mybungalow.model.EmployeeStatus;
+import com.backend.mybungalow.repository.AttendanceRepository;
 import com.backend.mybungalow.repository.EmployeeRepository;
 import com.backend.mybungalow.service.EmployeeService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -16,9 +18,11 @@ import java.util.List;
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final AttendanceRepository attendanceRepository;
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository) {
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, AttendanceRepository attendanceRepository) {
         this.employeeRepository = employeeRepository;
+        this.attendanceRepository = attendanceRepository;
     }
 
     @Override
@@ -78,10 +82,17 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional
     public void deleteEmployee(Long id) {
         if (!employeeRepository.existsById(id)) {
             throw new ResourceNotFoundException("Employee not found with id: " + id);
         }
+        
+        // Delete all attendance records for this employee first
+        // This prevents foreign key constraint violations
+        attendanceRepository.deleteAll(attendanceRepository.findByEmployeeId(id));
+        
+        // Now safe to delete the employee
         employeeRepository.deleteById(id);
     }
 

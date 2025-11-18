@@ -10,7 +10,8 @@ public record AdminReservationResponse(
         String status,
         Long customerId,
         String customerEmail,
-        String customerName
+        String customerName,
+        String paymentStatus
 ) {}
 
 

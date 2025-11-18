@@ -22,8 +22,17 @@ public class ReservationService {
     }
 
     public ReservationResponse createReservation(ReservationCreateRequest request) {
-        Customer customer = customerRepository.findById(request.customerId())
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+        Customer customer = null;
+        if (request.customerId() != null) {
+            customer = customerRepository.findById(request.customerId()).orElse(null);
+        }
+        if (customer == null && request.customerEmail() != null) {
+            customer = customerRepository.findByEmail(request.customerEmail())
+                    .orElseThrow(() -> new RuntimeException("Customer not found"));
+        }
+        if (customer == null) {
+            throw new RuntimeException("Customer not found");
+        }
 
         if (!request.checkOutDate().isAfter(request.checkInDate())) {
             throw new RuntimeException("Check-out date must be after check-in date");
@@ -35,6 +44,7 @@ public class ReservationService {
         reservation.setCheckInDate(request.checkInDate());
         reservation.setCheckOutDate(request.checkOutDate());
         reservation.setStatus("CONFIRMED");
+        reservation.setPaymentStatus("PENDING");
 
         Reservation saved = reservationRepository.save(reservation);
         return new ReservationResponse(
@@ -86,10 +96,61 @@ public class ReservationService {
                             r.getStatus(),
                             r.getCustomerId(),
                             customerEmail,
-                            customerName
+                            customerName,
+                            r.getPaymentStatus()
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    public AdminReservationResponse updateReservationStatus(Long id, String status) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reservation not found"));
+        
+        reservation.setStatus(status);
+        Reservation updated = reservationRepository.save(reservation);
+        
+        Customer c = customerRepository.findById(updated.getCustomerId())
+                .orElse(null);
+        String customerEmail = c != null ? c.getEmail() : null;
+        String customerName = c != null ? (c.getFirstName() + " " + c.getLastName()) : null;
+        
+        return new AdminReservationResponse(
+                updated.getId(),
+                updated.getBungalowName(),
+                updated.getCheckInDate(),
+                updated.getCheckOutDate(),
+                updated.getStatus(),
+                updated.getCustomerId(),
+                customerEmail,
+                customerName,
+                updated.getPaymentStatus()
+        );
+    }
+
+    public AdminReservationResponse updatePaymentStatus(Long id, String paymentStatus) {
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Reservation not found"));
+        
+        reservation.setPaymentStatus(paymentStatus);
+        Reservation updated = reservationRepository.save(reservation);
+        
+        Customer c = customerRepository.findById(updated.getCustomerId())
+                .orElse(null);
+        String customerEmail = c != null ? c.getEmail() : null;
+        String customerName = c != null ? (c.getFirstName() + " " + c.getLastName()) : null;
+        
+        return new AdminReservationResponse(
+                updated.getId(),
+                updated.getBungalowName(),
+                updated.getCheckInDate(),
+                updated.getCheckOutDate(),
+                updated.getStatus(),
+                updated.getCustomerId(),
+                customerEmail,
+                customerName,
+                updated.getPaymentStatus()
+        );
     }
 }
 

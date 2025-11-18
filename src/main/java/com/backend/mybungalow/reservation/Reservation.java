@@ -31,6 +31,9 @@ public class Reservation {
 
     @Column(nullable = false)
     private String status; // CONFIRMED, CANCELLED, COMPLETED
+
+    @Column(name = "payment_status", nullable = false)
+    private String paymentStatus = "PENDING"; // PENDING, PAID, OVERDUE
 }
 
  
